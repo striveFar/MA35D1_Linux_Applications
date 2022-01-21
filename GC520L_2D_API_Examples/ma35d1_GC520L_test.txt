@@ -1,0 +1,42 @@
+1. How to build
+(1-1) Toolchain : aarch64-poky-linux gcc version 9.3.0
+In Yocto, execute "bitbake nvt-image-qt5 -c populate_sdk" can generate this toolchain
+
+(1-2) Add toolchain to environment variables
+kevin@kevin-VirtualBox:~$ source /usr/local/oecore-x86_64/environment-setup-aarch64-poky-linux
+
+(1-3) Run test_build_sample.sh to build 
+kevin@kevin-VirtualBox:~/nua3500/GC520L/Git/Nuvoton/Test_Release$ ./test_build_sample.sh
+
+(1-4) *.so are generated in sdk/samples/hal/unit_test/ 
+kevin@kevin-VirtualBox:~/nua3500/GC520L/Git/Nuvoton/Test_Release$ cd sdk/samples/hal/unit_test/
+kevin@kevin-VirtualBox:~/nua3500/GC520L/Git/Nuvoton/Test_Release/sdk/samples/hal/unit_test$ ls
+1024_600_A8R8G8B8_DEFAULT.ini                libgal2DFilterBlit021.so               libgal2DFormatYUV005.so
+320_240_A1R5G5B5_VIRTUAL.ini                 libgal2DFilterBlit022.so               libgal2DFormatYUV006.so
+320_240_A4R4G4B4_VIRTUAL.ini                 libgal2DFilterBlit023.so               libgal2DFormatYUV007.so
+320_240_A8R8G8B8_DEFAULT.ini                 libgal2DFilterRotateDither002.so       libgal2DFormatYUV008.so
+320_240_A8R8G8B8_VIRTUAL.ini                 libgal2DFilterRotateDither003.so       libgal2DFormatYUV009.so
+320_240_R5G6B5_SYSTEM.ini                    libgal2DFilterRotateDither.so          libgal2DFormatYUV010.so
+600_400_B4G4R4A4_DEFAULT.ini                 libgal2DFormat10Bit001.so              libgal2DFormatYUV011.so
+640_480_A4B4G4R4_VIRTUAL.ini                 libgal2DFormat10Bit002.so              libgal2DFormatYUV012.so
+640_480_A8R8G8B8_DEFAULT.ini                 libgal2DFormat10Bit003.so              libgal2DFormatYUV013.so
+640_480_B5G6R5_VIRTUAL.ini                   libgal2DFormat10Bit004.so              libgal2DFormatYUV014.so
+640_480_B8G8R8A8_VIRTUAL.ini                 libgal2DFormat10Bit005.so              libgal2DFormatYUV015.so
+640_480_R5G5B5A1_VIRTUAL.ini                 libgal2DFormat10Bit006.so              libgal2DFormatYUV016.so
+640_480_R8G8B8A8_VIRTUAL.ini                 libgal2DFormatA8_001.so                libgal2DFormatYUV017.so
+galRunTest2                                  libgal2DFormatA8_002.so                libgal2DFormatYUV018.so
+
+
+2. How to run 
+(2-1) Copy the directory "unit_test" to your target root file system
+
+(2-2) Export libgalUtil.so to LD_LIBRARY_PATH
+root@ma35d1-evb:~# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/share/GC520L/sdk/unit_test/
+
+(2-3) Change directory to your target directory. Following is an example that "unit_test" is located in /usr/share/GC520L/sdk/
+root@ma35d1-evb:~# cd /usr/share/GC520L/sdk/unit_test/
+
+(2-4) Run one test pattern by "./galRunTest2 Pattern_Name.so -c 1024_600_A8R8G8B8_DEFAULT.ini"
+Following is an example to run the test pattern "./libgal2DBitBlit002.so"
+root@ma35d1-evb:/usr/share/GC520L/sdk/unit_test# ./galRunTest2 ./libgal2DBitBlit002.so -c 1024_600_A8R8G8B8_DEFAULT.ini
+
