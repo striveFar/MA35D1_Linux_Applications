@@ -26,13 +26,14 @@
 
 int main(int argc, char **argv)
 {
+	char    trng_dev[] = "/dev/hwrng";
 	__u32   trng_buff[1024];
 	int	fd;
 	int	i, loop;
 
-	fd = open(argv[1], O_RDONLY, 0666);
+	fd = open(trng_dev, O_RDONLY, 0666);
 	if (fd < 0) {
-		printf("open %s faild!!!\n", argv[1]);
+		printf("open %s faild!!!\n", trng_dev);
 		return -1;
 	}
 	for (loop = 0; loop < 3; loop++) {

@@ -10,7 +10,6 @@ LIBS = -lpthread -lc -lgcc
 all:
 	$(CC) -static $(SRCS) -o $(TARGET) $(LIBS)
 	$(STRIP) $(TARGET)
-#	cp $(TARGET) ../../../rootfs/
 
 clean:
 	rm -f *.o

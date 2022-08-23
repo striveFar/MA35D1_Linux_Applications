@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Nuvoton technology corporation
+ * Copyright (c) 2022 Nuvoton technology corporation
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -348,13 +348,10 @@ int main(int argc, char **argv)
 	int  message_len[] = {16, 64, 256, 1024, 4096, 16384, PTEST_BLK_MAX_SIZE};
 	int  i;
 
-//	AES_demo();
+	AES_demo();
 	
-#if 1
-	AES_performance();
-#endif
-
 #if 0
+	AES_performance();
 	for (i = 0; i < sizeof(message_len)/4; i++) {
 		SHA_performance("sha1", message_len[i]);
 		SHA_performance("sha224", message_len[i]);

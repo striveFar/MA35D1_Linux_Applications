@@ -39,8 +39,6 @@ CFLAGS = -Wall -g -lm
 
 all: $(EXEC)
 	$(STRIP) $(EXEC)
-#	cp $(EXEC) ../../../rootfs
-	ls -l
 
 .c.o:
 	$(CC) -c $(CFLAGS) $(INCLUDES) $<

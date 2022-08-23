@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Nuvoton technology corporation
+ * Copyright (c) 2022 Nuvoton technology corporation
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
