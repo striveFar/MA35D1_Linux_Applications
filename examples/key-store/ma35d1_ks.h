@@ -83,6 +83,7 @@
 #define KS_IOCTL_ERASE_ALL  _IOWR(MA35D1_KS_MAGIC, 5, unsigned long)
 #define KS_IOCTL_REVOKE     _IOWR(MA35D1_KS_MAGIC, 6, struct ks_kidx_args *)
 #define KS_IOCTL_GET_REMAIN _IOWR(MA35D1_KS_MAGIC, 7, unsigned long)
+#define KS_IOCTL_READ_OTP   _IOWR(MA35D1_KS_MAGIC, 11, struct ks_read_args *)
 
 /* type of key */
 #define KS_SRAM                  0x0
