@@ -249,6 +249,17 @@ static int dump_otp()
 	printf("MAC1 address = 0x%08x, 0x%08x\n", r_args.key[0], r_args.key[1]);
 
 	/*
+	 *  Deploy Password: 0x11C
+	 */
+	r_args.key_idx = 0x11C;
+	r_args.word_cnt = 1;
+	ret = ioctl(fd, KS_IOCTL_READ_OTP, &r_args);
+	if (ret != 0)
+		printf("Failed to read Deploy Password.\n");
+	else
+		printf("Deploy Password = 0x%08x\n", r_args.key[0]);
+
+	/*
 	 *  Secure Region: 0x120~0x177
 	 */
 	r_args.key_idx = 0x120;
@@ -288,8 +299,10 @@ static int dump_otp()
 		r_args.key_idx = i;
 		r_args.word_cnt = 4;
 		ret = ioctl(fd, KS_IOCTL_READ, &r_args);
-		if (ret != 0)
-			goto err_out2;
+		if (ret != 0) {
+			printf("Read Key Store OTP Key %d failed, ret=0x%x. (HUK may not programmmed)\n", r_args.key_idx, ret);
+			continue;
+		}
 		printf("HUK%d = ", i);
 		for (j = 0; j < 4; j++)
 			printf("%08x ", r_args.key[j]);
@@ -301,8 +314,10 @@ static int dump_otp()
 		r_args.key_idx = i;
 		r_args.word_cnt = 8;
 		ret = ioctl(fd, KS_IOCTL_READ, &r_args);
-		if (ret != 0)
-			goto err_out2;
+		if (ret != 0) {
+			printf("Read Key Store OTP Key %d failed, ret=0x%x. (Key may not programmmed)\n", r_args.key_idx, ret);
+			continue;
+		}
 		printf("Key Store OTP Key %d = ", i);
 		for (j = 0; j < 8; j++)
 			printf("%08x ", r_args.key[j]);
