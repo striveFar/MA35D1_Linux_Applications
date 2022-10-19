@@ -127,7 +127,7 @@ int main(int argc, char **argv)
 			}
 		}
 		printf("\n Write 10 bytes data to RTP finish! \n");
-		while(1);
+		break;
 	}
 
 	while(1) {
