@@ -23,7 +23,7 @@
 #include <sys/ioctl.h>
 #include <linux/rtc.h>
 
-#if 1 // for test
+#if 0 // for test
 #define T_Z1_TO_Z2		55	/* Enter Z2 once larger than T_Z1_TO_Z2 */
 #define T_Z2_TO_Z3		56	/* Enter Z3 once larger than T_Z2_TO_Z3 */
 #define T_Z3_TO_Z4		57	/* Enter Z4 once larger than T_Z3_TO_Z4 */
