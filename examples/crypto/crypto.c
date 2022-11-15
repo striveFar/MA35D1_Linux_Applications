@@ -30,6 +30,8 @@
 
 #define PTEST_TOTAL		0x40000UL
 #define PTEST_BLK_MAX_SIZE	0x10000
+#define SHA_TEST_TOTAL		0x10000UL
+
 
 char out[PTEST_BLK_MAX_SIZE];
 char in[PTEST_BLK_MAX_SIZE];
@@ -212,7 +214,7 @@ void AES_performance(void)
 	printf("AES performance test Done.\n");
 }
 
-int SHA_demo(int digest_size, int is_hmac)
+int SHA_demo(char *alg_name, int digest_size, int is_hmac)
 {
 	int opfd;
 	int tfmfd;
@@ -221,46 +223,16 @@ int SHA_demo(int digest_size, int is_hmac)
 		.salg_type = "hash",
 		.salg_name = "sha1"
 	};
-	char msg1[] = { 0xdf, 0x4b, 0xd2 };              // bf36ed5d74727dfd5d7854ec6b1d49468d8ee8aa
-	char msg2[] = { 0xf7, 0xfb, 0x1b, 0xe2, 0x05 };  // 60b7d5bb560a1acf6fa45721bd0abb419a841a89
-	char msg3[] = { 0x7e, 0x3d, 0x7b, 0x3e, 0xad, 0xa9, 0x88, 0x66 };  // 24a2c34b976305277ce58c2f42d5092031572520
+	char msg1[] = { 0x61, 0x62, 0x63 };   /* abc */
 	char hmac_key[8] = { 0x89, 0x11, 0x32, 0xef, 0x10, 0x8a, 0x22, 0x90 };
 	char buf[64];
 	int  i, bytes;
 
 	printf("\n+---------------------------------------------------------------+\n");
-	if (is_hmac)
-		printf("|  [AF_ALG] HMAC-SHA-%d demo                                   |\n", digest_size);
-	else    
-		printf("|  [AF_ALG] SHA-%d demo                                        |\n", digest_size);
+	printf("|  [AF_ALG] %s demo                                   |\n", alg_name);
 	printf("+---------------------------------------------------------------+\n");
 
-	switch (digest_size)
-	{
-		case 160:
-			strcpy(sa.salg_name, is_hmac ? "hmac-sha1" : "sha1");
-			break;
-			
-		case 224:
-			strcpy(sa.salg_name, is_hmac ? "hmac-sha224" : "sha224");
-			break;
-
-		case 256:
-			strcpy(sa.salg_name, is_hmac ? "hmac-sha256" : "sha256");
-			break;
-
-		case 384:
-			strcpy(sa.salg_name, is_hmac ? "hmac-sha384" : "sha384");
-			break;
-
-		case 512:
-			strcpy(sa.salg_name, is_hmac ? "hmac-sha512" : "sha512");
-			break;
-		
-		default:
-			printf("Invalid parameter!\n");
-			return -1;
-	}
+	strcpy(sa.salg_name, alg_name);
 	
 	bytes = digest_size/8;
  
@@ -280,34 +252,12 @@ int SHA_demo(int digest_size, int is_hmac)
 		printf("%02x", (unsigned char)buf[i]);
 	}
 	printf("\n");
-
-	if (is_hmac)
-		setsockopt(tfmfd, SOL_ALG, ALG_SET_KEY, hmac_key, 8);  // must be x4 length
-
-	write(opfd, msg2, sizeof(msg2));
-	read(opfd, buf, bytes);
-	printf("Output digest:\n  "); 
-	for (i = 0; i < bytes; i++) {
-		printf("%02x", (unsigned char)buf[i]);
-	}
-	printf("\n");
-
-	if (is_hmac)
-		setsockopt(tfmfd, SOL_ALG, ALG_SET_KEY, hmac_key, 8);  // must be x4 length
-
-	write(opfd, msg3, sizeof(msg3));
-	read(opfd, buf, bytes);
-	printf("Output digest:\n  "); 
-	for (i = 0; i < bytes; i++) {
-		printf("%02x", (unsigned char)buf[i]);
-	}
-	printf("\n");
  
 	close(opfd);
 	close(tfmfd);
 }
 
-void SHA_performance(char *name, int message_len)
+void SHA_performance(char *alg_name, int digest_size, int message_len)
 {
 	int opfd;
 	int tfmfd;
@@ -318,12 +268,16 @@ void SHA_performance(char *name, int message_len)
 	};
         struct timeval   t0, t1;
 	int  tt, tm, dcnt;
+	char buf[64];
+	int  loop, bytes;
 
 	printf("\n\n+---------------------------------------------------------------+\n");
-	printf("|  %s performance test                                     |\n", name);
+	printf("|  %s performance test                                     |\n", alg_name);
 	printf("+---------------------------------------------------------------+\n");
 
-	strcpy(sa.salg_name, name);
+	bytes = digest_size/8;
+
+	strcpy(sa.salg_name, alg_name);
 
 	tfmfd = socket(AF_ALG, SOCK_SEQPACKET, 0);
  
@@ -332,12 +286,15 @@ void SHA_performance(char *name, int message_len)
 	opfd = accept(tfmfd, NULL, 0);
 
 	gettimeofday(&t0, NULL);
-	write(opfd, in, message_len);
+	for (dcnt = 0; dcnt < SHA_TEST_TOTAL; dcnt += message_len) {
+		write(opfd, in, message_len);
+	}
+	read(opfd, buf, bytes);
 	gettimeofday(&t1, NULL);
 
 	tt = (t1.tv_sec - t0.tv_sec) * 1000000 + t1.tv_usec - t0.tv_usec;
 	tm = tt / 1000;
-	printf("PERFORMANCE: %s : %d : %d us : %ld KB/s\n", name, message_len, tt, ((message_len * 1000UL) / tm)/1024);
+	printf("PERFORMANCE: %s : %d : %d us : %ld KB/s\n", alg_name, message_len, tt, ((SHA_TEST_TOTAL * 1000UL) / tm)/1024);
 
 	close(opfd);
 	close(tfmfd);
@@ -350,32 +307,82 @@ int main(int argc, char **argv)
 
 	AES_demo();
 	
-#if 0
-	AES_performance();
-	for (i = 0; i < sizeof(message_len)/4; i++) {
-		SHA_performance("sha1", message_len[i]);
-		SHA_performance("sha224", message_len[i]);
-		SHA_performance("sha256", message_len[i]);
-		SHA_performance("sha384", message_len[i]);
-		SHA_performance("sha512", message_len[i]);
-		SHA_performance("sha3-224", message_len[i]);
-		SHA_performance("sha3-256", message_len[i]);
-		SHA_performance("sha3-384", message_len[i]);
-		SHA_performance("sha3-512", message_len[i]);
-	}
-#endif
+	SHA_demo("sha1", 160, 0);
+	SHA_demo("hmac(sha1)", 160, 1);
 
-	SHA_demo(160, 0);       // SHA-1
-	SHA_demo(160, 1);       // HMAC-SHA-1
-	SHA_demo(224, 0);       // SHA-224
-	SHA_demo(224, 1);       // HMAC-SHA-224
-	SHA_demo(256, 0);       // SHA-256
-	SHA_demo(256, 1);       // HMAC-SHA-256
-	SHA_demo(384, 0);       // SHA-384
-	SHA_demo(384, 1);       // HMAC-SHA-384
-	SHA_demo(512, 0);       // SHA-512
-	SHA_demo(512, 1);       // HMAC-SHA-512
+	SHA_demo("sha224", 224, 0);
+	SHA_demo("hmac(sha224)", 224, 1);
+
+	SHA_demo("sha256", 256, 0);
+	SHA_demo("hmac(sha256)", 256, 1);
+
+	SHA_demo("sha384", 384, 0);
+	SHA_demo("hmac(sha384)", 384, 1);
+
+	SHA_demo("sha512", 512, 0);
+	SHA_demo("hmac(sha512)", 512, 1);
+
+	SHA_demo("sha3-224", 224, 0);
+	SHA_demo("sha3-256", 256, 0);
+	SHA_demo("sha3-384", 384, 0);
+	SHA_demo("sha3-512", 512, 0);
+
+	/*
+	 *  Performance Test
+	 */
+	AES_performance();
+	
+	for (i = 0; i < sizeof(message_len)/4; i++) {
+		SHA_performance("sha1", 160, message_len[i]);
+		SHA_performance("sha224", 224, message_len[i]);
+		SHA_performance("sha256", 256, message_len[i]);
+		SHA_performance("sha384", 384, message_len[i]);
+		SHA_performance("sha512", 512, message_len[i]);
+		SHA_performance("sha3-224", 224, message_len[i]);
+		SHA_performance("sha3-256", 256, message_len[i]);
+		SHA_performance("sha3-384", 384, message_len[i]);
+		SHA_performance("sha3-512", 512, message_len[i]);
+	}
 }
 
-
-
+/*
+ *  AES test pattern of this example.
+ *  [AES-256 CBC Mode]
+ *      KEY: 06a9214036b8a15b512e03d53412000606a9214036b8a15b512e03d534120006
+ *      IV:  3dafba429d9eb430b422da802c9fac41
+ *      IN:  000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+ *      OUT: ef8b1fccd72d0a1fd6ac191a7ae62292fd3a996a45761d2f79dd8ff2c7e5101375eadb453ee09c16f791b6a18a6090b829f569c6973b16cc9f84c9fb86bf398f
+ *
+ *  SHA test pattern: "abc"
+ *  [SHA-1]
+ *      a9993e364706816aba3e25717850c26c9cd0d89d
+ *  [SHA-224]
+ *      23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7
+ *  [SHA-256]
+ *      ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+ *  [SHA-384]
+ *      cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7
+ *  [SHA-512]
+ *      ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f
+ *  [SHA3-224]
+ *      e642824c3f8cf24ad09234ee7d3c766fc9a3a5168d0c94ad73b46fdf
+ *  [SHA3-256]
+ *      3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532
+ *  [SHA3-384]
+ *      ec01498288516fc926459f58e2c6ad8df9b473cb0fc08c2596da7cf0e49be4b298d88cea927ac7f539f1edf228376d25
+ *  [SHA3-512]
+ *      b751850b1a57168a5693cd924b6b096e08f621827444f70d884f5d0240d2712e10e116e9192af3c91a7ec57647e3934057340b4cf408d5a56592f8274eec53f0
+ *  
+ *  HMAC-SHA test pattern: "abc"
+ *      HMAC KEY: 891132ef108a2290
+ *  [HMAC-SHA-1]
+ *      cfbdfa7b01f0f26996cd2f6bf77f092117fafe1b
+ *  [HMAC-SHA-224]
+ *      1b0e67c793799a9e34c6b2face31ddc781939db23f2bd537ca041cb8
+ *  [HMAC-SHA-256]
+ *      a887fe6178cd89f66d38788aa711db4aabebf6036d38c304323802421c927952
+ *  [HMAC-SHA-384]
+ *      05b2b02ded41d928fae54e3549984b36ab13271f7485d1ead36351de0fd244c42d14dcd5018e5a890c93e70bc8aa1661
+ *  [HMAC-SHA-512]
+ *      534cd738b46b422d6cc6efc2766fb6f65374cd7858d9fb29f96fb6273717bc3dd5a496ff2ef30e23c28c2835cff737297b7032e4900b8f6ac60f51b8b3a1eb4a
+ */
