@@ -18,7 +18,7 @@ link_directories("${CMAKE_CURRENT_SOURCE_DIR}/${TF_BUILD}/_deps/clog-build")
 link_directories("${CMAKE_CURRENT_SOURCE_DIR}/${OPENCV_INSTALL}/lib")
 
 
-add_executable(objectDetect main.cc ObjectDetModel.cc)
+add_executable(objectDetect main.cc ObjectDetModel.cc YoloPostProcessing.cc PlatformMath.cc)
 
 target_link_libraries(objectDetect tensorflow-lite)
 

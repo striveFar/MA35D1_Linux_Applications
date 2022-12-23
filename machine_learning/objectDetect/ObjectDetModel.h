@@ -1,12 +1,13 @@
 #ifndef OBJECT_DET_MODEL_H
 #define OBJECT_DET_MODEL_H
 
+#include <cstdint>
 
 #include "tensorflow/lite/interpreter.h"
 #include "tensorflow/lite/kernels/register.h"
 #include "tensorflow/lite/model.h"
 
-#include <cstdint>
+#include "YoloPostProcessing.h"
 
 using namespace std;
 using namespace tflite;
@@ -23,6 +24,11 @@ typedef struct{
 	float fClassScores;
 	S_BOX_POS sBoxPos;
 }S_DETECT_BOX;
+
+typedef enum{
+	eMODEL_TYPE_MOBILENET_SSD,
+	eMODEL_TYPE_YOLO	
+} E_MODEL_TYPE;
 
 class ObjectDetModel {
 public:
@@ -49,6 +55,8 @@ public:
 	
 	unsigned int GetOutputSize(int index);
 
+	const char* GetOutputName(int index);
+
 	typedef struct {
 		string szLabel;
 	}S_LABEL_INFO;
@@ -67,6 +75,7 @@ public:
 	TfLiteType m_tInputDatatype;	//input data type kTfLiteFloat32, kTfLiteUInt8, kTfLiteInt8, ....
 	TfLiteType m_tOutDatatype;		//output data type kTfLiteFloat32, kTfLiteUInt8, kTfLiteInt8, ....
 
+	E_MODEL_TYPE m_eModelType;
 private:
 
 	unique_ptr<Interpreter> m_pInterpreter;
@@ -75,6 +84,7 @@ private:
 	TfLiteType	m_tType;
 	int m_i32NumberOfThreads;
 	float m_fThreshold;
+	YoloPostprocessing m_sYoloPP;
 };
 
 #endif

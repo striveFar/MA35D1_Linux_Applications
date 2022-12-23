@@ -2,6 +2,7 @@
 #include <fstream> 
 
 #include "ObjectDetModel.h"
+#include "YoloConfig.h"
 
 #define LOG(x) std::cout
 
@@ -75,6 +76,30 @@ bool ObjectDetModel::Init(string &model_file)
 		LOG(FATAL) << "Failed to allocate tensors!";
 		return false;
 	}
+
+
+	if(GetNumberOfOutputs() == 4)
+	{
+		m_eModelType = eMODEL_TYPE_MOBILENET_SSD;
+	}
+	else
+	{
+		m_eModelType = eMODEL_TYPE_YOLO;
+	}
+
+	if(m_eModelType == eMODEL_TYPE_YOLO)
+	{
+		int output_channels;
+		int num_class;
+		//Get the tensor index of first output layer 
+		int output = m_pInterpreter->outputs()[0];
+
+		//Tensorflow defatult tensor format NHWC. 0:N--->batch ,1:H--->height ,2:W--->width, 3:C--->channel 
+		TfLiteIntArray* output_dims = m_pInterpreter->tensor(output)->dims;
+		output_channels = output_dims->data[3];
+		num_class = (output_channels / ANCHOR_BOX) - 5;
+		m_sYoloPP = YoloPostprocessing(m_fThreshold, 0.45, num_class, 0, m_tOutDatatype);
+	}
 	
 	m_bInited = true;
 	return true;
@@ -141,6 +166,11 @@ unsigned int ObjectDetModel::GetNumberOfOutputs()
 	return outputs.size();
 }
 
+const char* ObjectDetModel::GetOutputName(int index)
+{
+	return m_pInterpreter->GetOutputName(index);
+}
+
 //for tflite object post-process operator
 //index 0: 	detect score ?	shape:[1, num_boxes]
 //index 1:	detect box location shape:[1, num_boxes, 4]
@@ -193,9 +223,18 @@ bool ObjectDetModel::LoadImageIntoTensor(uint8_t* img)
 	if (m_tInputDatatype == kTfLiteFloat32) {
 		float *in = m_pInterpreter->typed_tensor<float>(input);
 
-		//Normalize to [-1,1]
-		for (int i = 0; i < sizeInBytes; i++)
-			in[i] = (img[i] - 127.5) * 0.0078125;
+		if(m_eModelType == eMODEL_TYPE_MOBILENET_SSD)
+		{
+			//Normalize to [-1,1]
+			for (int i = 0; i < sizeInBytes; i++)
+				in[i] = (img[i] - 127.5) * 0.0078125;
+		}
+		else
+		{
+			//Normalize to [0,1]
+			for (int i = 0; i < sizeInBytes; i++)
+				in[i] = img[i] / 255.0 ;
+		}
 	} 
 	else if( m_tInputDatatype == kTfLiteUInt8) {
 		uint8_t *in = m_pInterpreter->typed_tensor<uint8_t>(input);
@@ -280,39 +319,77 @@ typedef struct {
 
 int ObjectDetModel::GetDetBoxes(std::vector<S_DETECT_BOX> &detBoxes, uint32_t srcImgWidth, uint32_t srcImgHeight)
 {
-	int numBoxes = GetNumBoxesDetect();
 	int i;
-	float *scoreFloat = m_pInterpreter->typed_output_tensor<float>(DETECT_SCORE_TENSOR_INDEX);
-	float *classFloat = m_pInterpreter->typed_output_tensor<float>(DETECT_CLASS_TENSOR_INDEX);
-	S_TF_BoxCornerEncoding *psBoxEncoding = (S_TF_BoxCornerEncoding *) m_pInterpreter->typed_output_tensor<float>(DETECT_BOX_LOC_TENSOR_INDEX);
-	
+
 	detBoxes.clear();
 
-	numBoxes = 5;
-	for(i = 0; i < numBoxes; i ++)
+	//mobilenet-ssd
+	if(m_eModelType == eMODEL_TYPE_MOBILENET_SSD)
 	{
-		if(*scoreFloat > m_fThreshold)
+		int numBoxes = GetNumBoxesDetect();
+		float *scoreFloat = m_pInterpreter->typed_output_tensor<float>(DETECT_SCORE_TENSOR_INDEX);
+		float *classFloat = m_pInterpreter->typed_output_tensor<float>(DETECT_CLASS_TENSOR_INDEX);
+		S_TF_BoxCornerEncoding *psBoxEncoding = (S_TF_BoxCornerEncoding *) m_pInterpreter->typed_output_tensor<float>(DETECT_BOX_LOC_TENSOR_INDEX);
+
+		for(i = 0; i < numBoxes; i ++)
 		{
+			if(*scoreFloat > m_fThreshold)
+			{
 
-			S_DETECT_BOX sNewBox;
-			
-			sNewBox.i32ClassIndex = (int32_t)*classFloat;
-			sNewBox.fClassScores = *scoreFloat;
+				S_DETECT_BOX sNewBox;
+				
+				sNewBox.i32ClassIndex = (int32_t)*classFloat;
+				sNewBox.fClassScores = *scoreFloat;
 
-			sNewBox.sBoxPos.u32X = (uint32_t)(psBoxEncoding->xmin * srcImgWidth);
-			sNewBox.sBoxPos.u32Y = (uint32_t)(psBoxEncoding->ymin * srcImgHeight);
-			sNewBox.sBoxPos.u32Width = (uint32_t)((psBoxEncoding->xmax - psBoxEncoding->xmin) * srcImgWidth); 
-			sNewBox.sBoxPos.u32Height = (uint32_t)((psBoxEncoding->ymax - psBoxEncoding->ymin) * srcImgHeight);
+				sNewBox.sBoxPos.u32X = (uint32_t)(psBoxEncoding->xmin * srcImgWidth);
+				sNewBox.sBoxPos.u32Y = (uint32_t)(psBoxEncoding->ymin * srcImgHeight);
+				sNewBox.sBoxPos.u32Width = (uint32_t)((psBoxEncoding->xmax - psBoxEncoding->xmin) * srcImgWidth); 
+				sNewBox.sBoxPos.u32Height = (uint32_t)((psBoxEncoding->ymax - psBoxEncoding->ymin) * srcImgHeight);
 
-			detBoxes.push_back(sNewBox);
+				detBoxes.push_back(sNewBox);
 
+			}
+			scoreFloat ++;
+			classFloat ++;
+			psBoxEncoding ++;
 		}
-		scoreFloat ++;
-		classFloat ++;
-		psBoxEncoding ++;
+		
+		return numBoxes;
 	}
 
-	return numBoxes;
+	//Yolo
+	std::vector<YoloDetectionResult> YoloResults;
+
+	TfLiteTensor* modelOutput0 = m_pInterpreter->output_tensor(0);
+	TfLiteTensor* modelOutput1 = m_pInterpreter->output_tensor(1);
+
+	m_sYoloPP.RunPostProcessing(
+		GetInputHeight(),
+		GetInputWidth(),
+		srcImgHeight,
+		srcImgWidth,
+		modelOutput0,
+		modelOutput1,
+		YoloResults);		
+	
+	for(i = 0; i < YoloResults.size(); i ++){
+
+		S_DETECT_BOX sNewBox;
+		
+		sNewBox.i32ClassIndex = YoloResults[i].m_cls;
+		sNewBox.fClassScores = YoloResults[i].m_normalisedVal;
+
+		sNewBox.sBoxPos.u32X = YoloResults[i].m_x0;
+		sNewBox.sBoxPos.u32Y = YoloResults[i].m_y0;
+		sNewBox.sBoxPos.u32Width = YoloResults[i].m_w; 
+		sNewBox.sBoxPos.u32Height = YoloResults[i].m_h;
+
+		detBoxes.push_back(sNewBox);
+	}
+
+	YoloResults.clear();
+
+	return detBoxes.size();
 }
 
 

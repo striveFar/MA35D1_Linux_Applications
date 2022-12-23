@@ -55,19 +55,20 @@ static int object_detect(
 		cerr << "inference failed " << endl;
 		return -2;
 	}
-	
-	//Get output tensor
-    int64 t1 = cv::getTickCount();
 
 	objectDetModel.GetDetBoxes(detectBoxInfo, srcImage.cols, srcImage.rows);
+
+	//Get output tensor
+    int64 t1 = cv::getTickCount();
+    cout << "inference time " << ((t1-t0)/cv::getTickFrequency()) << endl;
 
 	return detectBoxInfo.size();
 }
 
 int main(int argc, char* argv[]) {
 
-	if (argc != 3) {
-		cerr << "objectDetect <tflite model> <label file> \n";
+	if (argc < 3) {
+		cerr << "objectDetect <tflite model> <label file> <image file>\n";
 		return -1;
 	}
 
@@ -99,6 +100,7 @@ int main(int argc, char* argv[]) {
 	for( i = 0; i < objectDetModel.GetNumberOfOutputs(); i ++)
 	{
 		cout << format("Model output layer size [%d] = %d ", i, objectDetModel.GetOutputSize(i)) << endl;
+		cout << format("Model output layer name [%d] = %s ", i, objectDetModel.GetOutputName(i)) << endl;
 	}
 	 
 #if defined(_OPEN_CAM)
@@ -125,14 +127,22 @@ int main(int argc, char* argv[]) {
 	// Read image from camera
     Mat frame;
     Mat resizeFrame;
-    
+
 #if defined(_OPEN_CAM)
     while ( capture.read(frame) )
     {
 #endif
 #if defined(_READ_IMAGE_FILE)
 		// Read picture
-		frame = imread("../sample/dinner.jpg", IMREAD_COLOR);
+		if(argc > 3)
+		{
+			string imageFile = argv[3];
+			frame = imread(imageFile.c_str(), IMREAD_COLOR);
+		}
+		else
+		{
+			frame = imread("../sample/dinner.jpg", IMREAD_COLOR);
+		}
 #endif
 
 		if(frame.empty())

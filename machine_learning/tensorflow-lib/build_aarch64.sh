@@ -8,6 +8,7 @@ source /usr/local/oecore-x86_64/environment-setup-aarch64-poky-linux
 #Check source
 if [ ! -d "$TF_SRC" ]; then
 	echo "Downlod tensorflow"
+	echo "Downlod tensorflow"
 	wget https://github.com/tensorflow/tensorflow/archive/refs/tags/v2.8.2.zip
 	unzip v2.8.2.zip
 	rm -f v2.8.2.zip
