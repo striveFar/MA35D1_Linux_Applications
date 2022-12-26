@@ -113,7 +113,7 @@ static int open_port(const char *portname)
 
 void * process1(void* arg)
 {
-	int portfd = (int) arg;
+	int portfd = *(int *) arg;
 	unsigned char i, j;
 	int rev1, rev2;
 	char RxBuffer[101];	
@@ -157,7 +157,7 @@ void * process1(void* arg)
 
 void * process2(void* arg)
 {
-	int portfd = (int) arg;
+	int portfd = *(int *) arg;
 	unsigned char i, j;
 	int rev1, rev2;
 	char RxBuffer[101];
@@ -220,8 +220,8 @@ int main(int argc, char **argv)
    			return -1;
 	}
 	
-	pthread_create(&threads[0], NULL, process1, (void*)(fd[0]));
-	pthread_create(&threads[1], NULL, process2, (void*)(fd[1]));
+	pthread_create(&threads[0], NULL, process1, (void*)&(fd[0]));
+	pthread_create(&threads[1], NULL, process2, (void*)&(fd[1]));
 
 	pthread_join(threads[0], NULL);
 	pthread_join(threads[1], NULL);
