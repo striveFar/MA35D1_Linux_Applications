@@ -1,0 +1,9 @@
+*.elf
+*.o
+*.x
+*.flat
+*.map
+*temp
+*.img
+*.gdb
+*/build
