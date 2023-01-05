@@ -1,16 +1,18 @@
 .SUFFIXES : .x .o .c .s
 
-CC := aarch64-linux-gnu-gcc
-STRIP := aarch64-linux-gnu-strip
+CC := aarch64-linux-gcc
+STRIP := aarch64-linux-strip
 
 TARGET = cpu-freq
 SRCS := cpu-freq.c
 LIBS = -lpthread -lc -lgcc
+BUILD_DIR = build
 
 all:
 	$(CC) -static $(SRCS) -o $(TARGET) $(LIBS)
 	$(STRIP) $(TARGET)
-	cp cpu-freq ~/work/pcshare/
+	mkdir -p ./$(BUILD_DIR)
+	mv $(TARGET) ./build/$(TARGET).elf
 	sync
 
 clean:
@@ -21,4 +23,5 @@ clean:
 	rm -f temp
 	rm -f *.img
 	rm -f $(TARGET)
+	rm -rf $(BUILD_DIR)
 	rm -f *.gdb
